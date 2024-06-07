@@ -24,9 +24,12 @@ cur = conn.cursor()
 cur.execute('''
 CREATE TABLE IF NOT EXISTS air_quality(
     station_id INTEGER,
-    measurement_date TIMESTAMP,
+    date_time TIMESTAMP,
     index_value DECIMAL,
-    index_name VARCHAR(255)
+    index_name VARCHAR(255),
+    FOREIGN KEY (station_id)
+        REFERENCES stations (station_id)
+        ON UPDATE CASCADE ON DELETE CASCADE
 );
 ''')
 conn.commit()
@@ -49,16 +52,11 @@ def fetch_data_from_api(api_url):
 
 def insert_data_to_db(conn, data):
     cur = conn.cursor()
-    if data['AqIndex']:
-        cur.execute('''
-            INSERT INTO air_quality (station_id, measurement_date, index_value, index_name)
-            VALUES (%s, %s, %s, %s);
-        ''', (
-            data['AqIndex']['Identyfikator stacji pomiarowej'],
-            data['AqIndex']['Data wykonania obliczeń indeksu'],
-            data['AqIndex']['Wartość indeksu'],
-            data['AqIndex']['Nazwa kategorii indeksu'],
-        ))
+    if data['AqIndex'] and data['AqIndex']['Wartość indeksu'] is not None:
+        cur.execute(f'''
+            INSERT INTO air_quality (station_id, date_time, index_value, index_name)
+            VALUES ({data['AqIndex']['Identyfikator stacji pomiarowej']}, '{data['AqIndex']['Data wykonania obliczeń indeksu']}', {data['AqIndex']['Wartość indeksu']}, '{data['AqIndex']['Nazwa kategorii indeksu']}');
+        ''')
         conn.commit()
 
 def job():
