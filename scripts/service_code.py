@@ -8,7 +8,7 @@ import time
 db_name = 'gios_data'
 db_user = 'postgres'
 db_password = 'kochamadb'
-db_host = '172.31.48.1'
+db_host = 'localhost'
 db_port = '5000'
 
 conn = psycopg2.connect(
@@ -18,21 +18,6 @@ conn = psycopg2.connect(
     host=db_host,
     port=db_port
 )
-
-cur = conn.cursor()
-
-cur.execute('''
-CREATE TABLE IF NOT EXISTS air_quality(
-    station_id INTEGER,
-    date_time TIMESTAMP,
-    index_value DECIMAL,
-    index_name VARCHAR(255),
-    FOREIGN KEY (station_id)
-        REFERENCES stations (station_id)
-        ON UPDATE CASCADE ON DELETE CASCADE
-);
-''')
-conn.commit()
 
 def get_all_ids():
     response = requests.get("https://api.gios.gov.pl/pjp-api/rest/station/findAll")
@@ -51,13 +36,14 @@ def fetch_data_from_api(api_url):
         return None
 
 def insert_data_to_db(conn, data):
-    cur = conn.cursor()
-    if data['AqIndex'] and data['AqIndex']['Wartość indeksu'] is not None:
-        cur.execute(f'''
-            INSERT INTO air_quality (station_id, date_time, index_value, index_name)
-            VALUES ({data['AqIndex']['Identyfikator stacji pomiarowej']}, '{data['AqIndex']['Data wykonania obliczeń indeksu']}', {data['AqIndex']['Wartość indeksu']}, '{data['AqIndex']['Nazwa kategorii indeksu']}');
-        ''')
-        conn.commit()
+    with conn:
+        with conn.cursor() as cur:
+            if data['AqIndex'] and data['AqIndex']['Wartość indeksu'] is not None:
+                cur.execute(f'''
+                    UPSERT INTO air_quality (station_id, date_time, index_value, index_name)
+                    VALUES ({data['AqIndex']['Identyfikator stacji pomiarowej']}, '{data['AqIndex']['Data wykonania obliczeń indeksu']}', {data['AqIndex']['Wartość indeksu']}, '{data['AqIndex']['Nazwa kategorii indeksu']}');
+                ''')
+                conn.commit()
 
 def job():
     for station_id in all_ids:
@@ -66,8 +52,9 @@ def job():
         if data:
             insert_data_to_db(conn, data)
 
-schedule.every(1).hours.do(job)
-
-while True:
-    schedule.run_pending()
-    time.sleep(1)
+if __name__ == '__main__':
+    schedule.every(1).hours.do(job)
+    
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
