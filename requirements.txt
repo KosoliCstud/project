@@ -9,3 +9,4 @@ sqlalchemy
 sqlalchemy_utils
 openpyxl
 numpy
+nbformat
