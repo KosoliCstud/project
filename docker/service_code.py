@@ -1,7 +1,8 @@
 import psycopg2
 import requests
 import schedule
-import time
+import time 
+import datetime
 
 
 def get_all_ids():
@@ -9,7 +10,7 @@ def get_all_ids():
     data = response.json()
 
     ids = [station['id'] for station in data]
-    return ids
+    return ids[:5]
 
 
 def fetch_data_from_api(api_url):
@@ -26,7 +27,7 @@ def insert_data_to_db(conn, data):
             if data['AqIndex'] and data['AqIndex']['Wartość indeksu'] is not None:
                 cur.execute(f'''
                     INSERT INTO air_quality (station_id, date_time, index_value, index_name)
-                    VALUES ({data['AqIndex']['Identyfikator stacji pomiarowej']}, '{data['AqIndex']['Data wykonania obliczeń indeksu']}', {data['AqIndex']['Wartość indeksu']}, '{data['AqIndex']['Nazwa kategorii indeksu']}');
+                    VALUES ({data['AqIndex']['Identyfikator stacji pomiarowej']}, '{datetime.datetime.now()}', {data['AqIndex']['Wartość indeksu']}, '{data['AqIndex']['Nazwa kategorii indeksu']}');
                 ''')
                 conn.commit()
 
@@ -58,7 +59,7 @@ if __name__ == '__main__':
     table_exists = False
     
     # schedule.every(1).hours.do(job)
-    schedule.every(1).seconds.do(job)
+    schedule.every(30).seconds.do(job)
     
     while True:
         time.sleep(1)
